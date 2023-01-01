@@ -22,6 +22,9 @@ In YAML code, the `${EnvironmentName}` would be substituted with `UdacityProject
 
 * Optional - To add more challenge to the project, once the project is completed, you can try deploying sample website files located in a public S3 Bucket to the Apache Web Server running on an EC2 instance. Though, it is not the part of the project rubric.
 
+## System Architectural Diagram
+![system_architecture](/Udagram%20Sys%20Arch.png)
+
 ## Server Specs
 
 * A  Launch Configuration for the application servers in order to deploy four servers, two located in each private subnets. The launch configuration will be used by an auto-scaling group.
