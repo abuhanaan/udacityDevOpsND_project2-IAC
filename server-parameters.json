@@ -2,5 +2,13 @@
 	{
 		"ParameterKey": "EnvironmentName",
 		"ParameterValue": "UdacityProject"
+	},
+	{
+		"ParameterKey": "AMIid",
+		"ParameterValue": "ami-0beaa649c482330f7"
+	},
+	{
+		"ParameterKey": "UdagramKey",
+		"ParameterValue": "ndAS_DemoAdmin"
 	}
 ]
