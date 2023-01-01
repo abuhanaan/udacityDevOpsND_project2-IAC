@@ -1,8 +1,12 @@
 Parameters:
   # Paramenters are entirely optional.
-  # but using them will make your cloudformation templates more reusable
+  # but using them will make cloudformation templates more reusable
   # use them for things that may change over time, such as instance type,
   # VPCs and so on.
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
 Resources:
   # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
   # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
@@ -12,7 +16,8 @@ Resources:
     Properties: 
       Roles:
         - UdacityS3ReadOnlyEC2
-Outputs: 
+  
+# Outputs: 
   # This is also optional.
   # Bonus points for useful outputs!
   # for example, if you create a Load Balancer
