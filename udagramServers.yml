@@ -90,7 +90,6 @@ Resources:
           sudo echo "it works! Udagram, Udacity" > index.html      
       IamInstanceProfile: !Ref ProfileWithRolesForOurApp  
       ImageId: !Ref AMIid
-      KeyName: !Ref UdagramKey
       SecurityGroups:
       - Ref: WebServerSecGroup
       InstanceType: t3.medium
