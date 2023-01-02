@@ -138,3 +138,26 @@ Resources:
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
   
+Outputs: 
+  WebAppLaunchConfig: 
+    Description: A reference to the created Launch Configuration
+    Value: !Ref WebAppLaunchConfig
+    Export:
+      Name: !Sub ${EnvironmentName}-WebAppLaunchConfig
+  WebAppLB:
+    Description: A reference to the created Load Balancer
+    Value: !Ref WebAppLB
+    Export:
+      Name: !Sub ${EnvironmentName}-WebAppLB
+  WebAppTargetGroup:
+    Value: !Ref WebAppTargetGroup
+    Export:
+      Name: !Sub ${EnvironmentName}-WebAppTargetGroup
+  LBSecGroup:
+    Value: !Ref LBSecGroup
+    Export:
+      Name: !Sub ${EnvironmentName}-LBSecGroup
+  WebServerSecGroup:
+    Value: !Ref WebServerSecGroup
+    Export:
+      Name: !Sub ${EnvironmentName}-WebServerSecGroup
