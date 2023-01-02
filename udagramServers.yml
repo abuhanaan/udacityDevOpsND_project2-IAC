@@ -17,11 +17,26 @@ Resources:
   # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
   # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
   # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+  RoleForSSMAccess:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   ProfileWithRolesForOurApp:
     Type: AWS::IAM::InstanceProfile
     Properties: 
       Roles:
-        - UdacityS3ReadOnlyEC2
+        - !Ref RoleForSSMAccess
+
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -39,10 +54,7 @@ Resources:
         FromPort: 80
         ToPort: 80
         CidrIp: 0.0.0.0/0
-      - IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
-        CidrIp: 0.0.0.0/0
+
   WebServerSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -52,8 +64,8 @@ Resources:
           !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
+        FromPort: 80
+        ToPort: 80
         CidrIp: 0.0.0.0/0
       - IpProtocol: tcp
         FromPort: 22
@@ -64,6 +76,7 @@ Resources:
         FromPort: 0
         ToPort: 65535
         CidrIp: 0.0.0.0/0
+
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -74,7 +87,7 @@ Resources:
           sudo apt-get install apache2 -y
           sudo systemctl start apache2.service
           sudo cd /var/www/html
-          sudo echo "Udacity Demo Web Server Up and Running!" > index.html      
+          sudo echo "it works! Udagram, Udacity" > index.html      
       IamInstanceProfile: !Ref ProfileWithRolesForOurApp  
       ImageId: !Ref AMIid
       KeyName: !Ref UdagramKey
@@ -85,6 +98,7 @@ Resources:
       - DeviceName: "/dev/sdk"
         Ebs:
           VolumeSize: '10'
+
   WebAppGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -97,6 +111,7 @@ Resources:
       MaxSize: '6'
       TargetGroupARNs:
       - Ref: WebAppTargetGroup
+
   WebAppLB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -135,12 +150,13 @@ Resources:
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 8
       HealthyThresholdCount: 2
-      Port: 8080
+      Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 5
       VpcId: 
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
+          
   s3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -155,11 +171,11 @@ Outputs:
     Value: !Ref WebAppLaunchConfig
     Export:
       Name: !Sub ${EnvironmentName}-WebAppLaunchConfig
-  WebAppLB:
-    Description: A reference to the created Load Balancer
-    Value: !Ref WebAppLB
+  WebAppLBDNSName:
+    Description: The DNSName of the created Load Balancer
+    Value: !GetAtt WebAppLB.DNSName
     Export:
-      Name: !Sub ${EnvironmentName}-WebAppLB
+      Name: !Sub ${EnvironmentName}-WebAppLBDNSName
   WebAppTargetGroup:
     Value: !Ref WebAppTargetGroup
     Export:
