@@ -5,10 +5,10 @@
 	},
 	{
 		"ParameterKey": "AMIid",
-		"ParameterValue": "ami-0beaa649c482330f7"
+		"ParameterValue": "ami-0283a57753b18025b"
 	},
 	{
 		"ParameterKey": "UdagramKey",
-		"ParameterValue": "ndAS_DemoAdmin"
+		"ParameterValue": "jumpbox-key"
 	}
 ]

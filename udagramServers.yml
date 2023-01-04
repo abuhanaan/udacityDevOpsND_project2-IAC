@@ -17,11 +17,26 @@ Resources:
   # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
   # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
   # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+  RoleForSSMAccess:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   ProfileWithRolesForOurApp:
     Type: AWS::IAM::InstanceProfile
     Properties: 
       Roles:
-        - UdacityS3ReadOnlyEC2
+        - !Ref RoleForSSMAccess
+
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -30,19 +45,16 @@ Resources:
         Fn::ImportValue:
           !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 80
-        ToPort: 80
-        CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
       - IpProtocol: tcp
         FromPort: 80
         ToPort: 80
         CidrIp: 0.0.0.0/0
-      - IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
-        CidrIp: 0.0.0.0/0
+
   WebServerSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -51,67 +63,73 @@ Resources:
         Fn::ImportValue:
           !Sub "${EnvironmentName}-VPCID"
       SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
-        CidrIp: 0.0.0.0/0
-      - IpProtocol: tcp
-        FromPort: 22
-        ToPort: 22
-        CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          # SourceSecurityGroupId: !Ref LBSecGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
-      - IpProtocol: tcp
-        FromPort: 0
-        ToPort: 65535
-        CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+
   WebAppLaunchConfig:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          sudo apt-get update -y
-          sudo apt-get install apache2 -y
-          sudo systemctl start apache2.service
-          sudo cd /var/www/html
-          sudo echo "Udacity Demo Web Server Up and Running!" > index.html      
+          apt-get update -y
+          apt-get install apache2 -y
+          systemctl start apache2.service
+          cd /var/www/html
+          echo "it works! Udagram, Udacity" > index.html
+          systemctl restart apache2.service    
       IamInstanceProfile: !Ref ProfileWithRolesForOurApp  
       ImageId: !Ref AMIid
-      KeyName: !Ref UdagramKey
       SecurityGroups:
-      - Ref: WebServerSecGroup
+        - Ref: WebServerSecGroup
       InstanceType: t3.medium
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
           VolumeSize: '10'
+
   WebAppGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-      - Fn::ImportValue: 
-          !Sub "${EnvironmentName}-PRIV-NETS"
+        - Fn::ImportValue: 
+            !Sub "${EnvironmentName}-PRIV-NETS"
       LaunchConfigurationName:
         Ref: WebAppLaunchConfig
+      # HealthCheckGracePeriod: 600
       MinSize: '4'
       MaxSize: '6'
       TargetGroupARNs:
-      - Ref: WebAppTargetGroup
+        - Ref: WebAppTargetGroup
+
   WebAppLB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
+      Scheme: internet-facing
       Subnets:
-      - Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
-      - Fn::ImportValue: !Sub "${EnvironmentName}-PUB2-SN"
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB2-SN"
       SecurityGroups:
-      - Ref: LBSecGroup
+        - Ref: LBSecGroup
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       DefaultActions:
-      - Type: forward
-        TargetGroupArn:
-          Ref: WebAppTargetGroup
+        - Type: forward
+          TargetGroupArn:
+            Ref: WebAppTargetGroup
       LoadBalancerArn:
         Ref: WebAppLB
       Port: '80'
@@ -120,27 +138,29 @@ Resources:
       Type: AWS::ElasticLoadBalancingV2::ListenerRule
       Properties:
         Actions:
-        - Type: forward
-          TargetGroupArn: !Ref 'WebAppTargetGroup'
+          - Type: forward
+            TargetGroupArn: !Ref 'WebAppTargetGroup'
         Conditions:
-        - Field: path-pattern
-          Values: [/]
+          - Field: path-pattern
+            Values: [/]
         ListenerArn: !Ref 'Listener'
         Priority: 1
   WebAppTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 10
+      HealthCheckIntervalSeconds: 20
       HealthCheckPath: /
       HealthCheckProtocol: HTTP
       HealthCheckTimeoutSeconds: 8
       HealthyThresholdCount: 2
-      Port: 8080
+      Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 5
+      TargetType: instance
       VpcId: 
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
+          
   s3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -155,11 +175,11 @@ Outputs:
     Value: !Ref WebAppLaunchConfig
     Export:
       Name: !Sub ${EnvironmentName}-WebAppLaunchConfig
-  WebAppLB:
-    Description: A reference to the created Load Balancer
-    Value: !Ref WebAppLB
+  WebAppLBDNSName:
+    Description: The DNSName of the created Load Balancer
+    Value: !GetAtt WebAppLB.DNSName
     Export:
-      Name: !Sub ${EnvironmentName}-WebAppLB
+      Name: !Sub ${EnvironmentName}-WebAppLBDNSName
   WebAppTargetGroup:
     Value: !Ref WebAppTargetGroup
     Export:
